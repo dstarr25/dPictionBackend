@@ -1,5 +1,5 @@
 import { ServerWebSocket } from "bun"
-import { CanvasData, GameStates, JoinData, JoinResponse, MessageTypes, Player, Room, SocketMessage } from './types'
+import { CanvasData, CloseReasons, GameStates, JoinData, JoinResponse, ToServerMessages, Player, Room, SocketMessage } from './types'
 import { randomUUID } from "crypto"
 
 class Router {
@@ -68,85 +68,64 @@ class Server extends Router {
                     // console.log(data)
                     const messageData = JSON.parse(message.toString()) as SocketMessage
                     switch (messageData.action) {
-                        case MessageTypes.JOIN: {
-                            console.log('join message')
+                        case ToServerMessages.JOIN: {
+
+                            const playerJoin = (gameId: string, name: string) => {
+                                const player = new Player(name, ws)
+                                rooms[gameId].players[name] = player
+
+                                Object.entries(rooms[gameId].players).forEach(([playerName, player]) => {
+                                    if (playerName === name) return;
+                                    // send join message to all the other players in that game so they know someone joined
+                                    const joinMessage = new SocketMessage(ToServerMessages.JOIN, { roomId: gameId, name } as JoinResponse)
+                                    player.ws.send(JSON.stringify(joinMessage))
+                                });
+
+                                // make join response socket message then send it
+                                const joinResponse = new SocketMessage(ToServerMessages.JOIN, { roomId: gameId } as JoinResponse)
+                                ws.send(JSON.stringify(joinResponse))
+
+                            }
+
                             const data = messageData.data as JoinData
                             console.log('join data', data)
                             if (data.gameId === 'banana') { // they are creating a game. they're the first player to join, so they 
                                 const newRoomId = randomUUID()
-                                const player = {
-                                    name: data.name,
-                                    score: 0,
-                                    guess: "",
-                                    ws
-                                } as Player
-                                rooms[newRoomId] = {
-                                    players: {[data.name]: player},
-                                    canvasData: {
-                                        width: 200,
-                                        height: 150,
-                                        pixels: []
-                                    },
-                                    gameState: GameStates.OPEN,
-                                    roundNum: -1,
-                                    prompt: "",
-                                    admin: data.name,
-                                    drawer: "",
+                                rooms[newRoomId] = new Room()
+                                
+                                playerJoin(newRoomId, data.name)
 
-                                } as Room
-                                
-                                const joinResponse = {
-                                    action: MessageTypes.JOIN,
-                                    data: {
-                                        roomId: newRoomId,
-                                    } as JoinResponse
-                                } as SocketMessage
-                                
-                                console.log(rooms)
-                                ws.send(JSON.stringify(joinResponse))
                                 break;
                             }
-                            // they are trying to join a game that (they think) exists.
+                            // they are trying to join a game, but it might not exist
                             if (!Object.keys(rooms).includes(data.gameId)) {
-                                const joinResponse = {
-                                    action: MessageTypes.JOIN,
-                                    data: {
-                                        roomId: "",
-                                    } as JoinResponse
-                                } as SocketMessage
-                                ws.send(JSON.stringify(joinResponse))
-                                ws.close(4000, 'room with that id does not exist.')
+                                ws.close(CloseReasons.GAME_NO_EXIST)
+                                break;
                             }
 
-                            // they are joining a game that already exists.
+                            // they are joining a game that already exists, but might not be joinable...
+                            if (rooms[data.gameId].gameState !== GameStates.OPEN) {
+                                ws.close(CloseReasons.GAME_IN_PROGRESS)
+                                break;
+                            }
+                            
+                            // they are joining a room that can be joined, but their name might be taken...
+                            if (Object.keys(rooms[data.gameId].players).includes(data.name)) {
+                                ws.close(CloseReasons.NAME_TAKEN)
+                                break;
+                            }
 
-                            // make them a player
-                            const player = {
-                                name: data.name,
-                                score: 0,
-                                guess: "",
-                                ws
-                            } as Player
-
-                            // put their player info in
-                            rooms[data.gameId].players[data.name] = player
-
-                            // make a join response and send it
-                            const joinResponse = {
-                                action: MessageTypes.JOIN,
-                                data: {
-                                    roomId: data.gameId,
-                                } as JoinResponse
-                            } as SocketMessage
-                            ws.send(JSON.stringify(joinResponse))
+                            // make them join the game they're tryna join
+                            playerJoin(data.gameId, data.name)
 
                             // what do be rooms
-                            console.log(rooms)
+                            console.log('rooms do be:', rooms)
                             break;
 
 
                         }
-
+                        default:
+                            break;
                     }
                     // clients.forEach((client) => {
                     //     if (client !== ws && client.readyState === WebSocket.OPEN) {
