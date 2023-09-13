@@ -13,6 +13,12 @@ export enum MessageTypes {
     PROMPT = 'prompt', // someone writes a prompt
 }
 
+export enum GameStates {
+    OPEN = 'open',
+    PROMPTS = 'prompts',
+    DRAWING = 'drawing'
+}
+
 export interface Guess {
     playerId: number,
     guess: string,
@@ -20,17 +26,14 @@ export interface Guess {
 
 export interface Player {
     name: string,
-    id: number,
     score: number,
-    isDrawer: boolean,
-    currentGuess: string,
-    isAdmin: boolean,
+    guess: string,
     ws: ServerWebSocket<unknown>,
 }
 
 export interface Prompt {
     prompt: string,
-    playerId: number
+    author: string
 }
 
 export interface SocketMessage {
@@ -44,11 +47,17 @@ export interface JoinData {
 }
 
 export interface Room {
-    playerIds: number[],
-    canvasData: CanvasData
+    players: {[key: string]: Player},
+    canvasData: CanvasData,
+    roundNum: number,
+    gameState: string,
+    prompt: string,
+    drawer: string,
+    admin: string,
+
+
 }
 
 export interface JoinResponse {
     roomId: string,
-    playerId: number,
 }
