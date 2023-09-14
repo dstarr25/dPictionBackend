@@ -7,13 +7,10 @@ socket.addEventListener("message", event => {
 socket.addEventListener("open", () => {
     console.log("WebSocket connection opened.");
     // Now that the connection is open, you can send a message.
-    const joinMessage = {
-        action: ToServerMessages.JOIN,
-        data: {
-            name: 'brushman2',
-            gameId: 'banana'
-        } as JoinData
-    } as SocketMessage
+    const joinMessage = new SocketMessage(ToServerMessages.JOIN, {
+        name: 'second',
+        gameId: '2d9bf5d5-801d-4fd5-a57f-100a257fd89d'
+    })
     socket.send(JSON.stringify(joinMessage));
 })
 

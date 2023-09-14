@@ -1,5 +1,5 @@
 import { ServerWebSocket } from "bun"
-import { CanvasData, CloseReasons, GameStates, JoinData, JoinResponse, ToServerMessages, Player, Room, SocketMessage } from './types'
+import { CanvasData, CloseReasons, GameStates, JoinData, JoinResponse, ToServerMessages, Player, Room, SocketMessage, ToClientMessages } from './types'
 import { randomUUID } from "crypto"
 
 class Router {
@@ -41,6 +41,41 @@ class Server extends Router {
     listen(port: number) {
         const routes = this.routes
         const rooms: { [key: string]: Room } = {}
+        const playerJoin = (gameId: string, name: string, ws: ServerWebSocket<unknown>) => {
+            const player = new Player(name, ws)
+            rooms[gameId].players[name] = player
+
+            Object.entries(rooms[gameId].players).forEach(([playerName, player]) => {
+                if (playerName === name) return;
+                // send join message to all the other players in that game so they know someone joined
+                const joinMessage = new SocketMessage(ToClientMessages.JOIN, { name })
+                console.log(JSON.stringify(joinMessage))
+                player.ws.send(JSON.stringify(joinMessage))
+            });
+
+            // make join response socket message then send it
+            const joinResponse = new SocketMessage(ToClientMessages.JOIN_SUCCESS, {
+                players: Object.keys(rooms[gameId].players),
+                admin: rooms[gameId].admin,
+                gameId
+            })
+            ws.send(JSON.stringify(joinResponse))
+
+        }
+
+        const printRooms = () => {
+            const tempRooms = JSON.parse(JSON.stringify(rooms)) as any
+            Object.keys(tempRooms).forEach((roomId) => {
+                Object.keys(tempRooms[roomId].players).forEach((playerName) => {
+                    delete tempRooms[roomId].players[playerName].ws
+                })
+            })
+            console.log('========== ROOMS ==========')
+            console.log(tempRooms)
+            console.log('===========================')
+
+        }
+
         let clients: ServerWebSocket<unknown>[] = []
         console.log(`server listens - port ${port}. here are your routes :)\n`, routes)
         Bun.serve({
@@ -70,22 +105,6 @@ class Server extends Router {
                     switch (messageData.action) {
                         case ToServerMessages.JOIN: {
 
-                            const playerJoin = (gameId: string, name: string) => {
-                                const player = new Player(name, ws)
-                                rooms[gameId].players[name] = player
-
-                                Object.entries(rooms[gameId].players).forEach(([playerName, player]) => {
-                                    if (playerName === name) return;
-                                    // send join message to all the other players in that game so they know someone joined
-                                    const joinMessage = new SocketMessage(ToServerMessages.JOIN, { roomId: gameId, name } as JoinResponse)
-                                    player.ws.send(JSON.stringify(joinMessage))
-                                });
-
-                                // make join response socket message then send it
-                                const joinResponse = new SocketMessage(ToServerMessages.JOIN, { roomId: gameId } as JoinResponse)
-                                ws.send(JSON.stringify(joinResponse))
-
-                            }
 
                             const data = messageData.data as JoinData
                             console.log('join data', data)
@@ -93,48 +112,49 @@ class Server extends Router {
                                 const newRoomId = randomUUID()
                                 rooms[newRoomId] = new Room()
                                 
-                                playerJoin(newRoomId, data.name)
+                                rooms[newRoomId].admin = data.name
 
-                                break;
+                                playerJoin(newRoomId, data.name, ws)
+                                printRooms()
+
+                                break
                             }
                             // they are trying to join a game, but it might not exist
                             if (!Object.keys(rooms).includes(data.gameId)) {
+                                console.log(`couldn't join because no room with the id ${data.gameId} exists.`)
                                 ws.close(CloseReasons.GAME_NO_EXIST)
-                                break;
+                                printRooms()
+                                break
                             }
 
                             // they are joining a game that already exists, but might not be joinable...
                             if (rooms[data.gameId].gameState !== GameStates.OPEN) {
+                                console.log(`couldn't join because the game was not open.`)
                                 ws.close(CloseReasons.GAME_IN_PROGRESS)
-                                break;
+                                printRooms()
+                                break
                             }
                             
                             // they are joining a room that can be joined, but their name might be taken...
                             if (Object.keys(rooms[data.gameId].players).includes(data.name)) {
+                                console.log(`couldn't join because the name ${data.name} was already taken.`)
                                 ws.close(CloseReasons.NAME_TAKEN)
-                                break;
+                                printRooms()
+                                break
                             }
 
                             // make them join the game they're tryna join
-                            playerJoin(data.gameId, data.name)
+                            playerJoin(data.gameId, data.name, ws)
+                            printRooms()
 
                             // what do be rooms
-                            console.log('rooms do be:', rooms)
-                            break;
+                            break
 
 
                         }
                         default:
-                            break;
+                            break
                     }
-                    // clients.forEach((client) => {
-                    //     if (client !== ws && client.readyState === WebSocket.OPEN) {
-                    //         console.log("sending data to a socket")
-                    //         client.send(message)
-                    //     } else {
-                    //         console.log("this socket was the sender, not sending data to it :)")
-                    //     }
-                    // })
                 },
                 open(ws) {
                     console.log(`client connected with remoteAddress: ${ws.remoteAddress}`)

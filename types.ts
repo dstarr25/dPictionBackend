@@ -23,7 +23,8 @@ export enum ToServerMessages {
 }
 
 export enum ToClientMessages {
-    JOIN = 'join', // successful join, server sends room data
+    JOIN_SUCCESS = 'join_success', // successful join, server sends room data
+    JOIN = 'join', // to tell the clients that someone else joined
     DRAW = 'draw', // drawer draws something
     GUESS = 'guess', // someone makes a guess, only send to drawer
 }
@@ -80,7 +81,7 @@ export interface JoinData {
 
 export class Room {
     players: {[key: string]: Player}
-    canvasData: CanvasData
+    // canvasData: CanvasData
     roundNum: number
     gameState: string
     prompt: string
@@ -89,7 +90,7 @@ export class Room {
 
     constructor() {
         this.players = {}
-        this.canvasData = new CanvasData()
+        // this.canvasData = new CanvasData()
         this.roundNum = -1
         this.gameState = GameStates.OPEN
         this.prompt = ""
