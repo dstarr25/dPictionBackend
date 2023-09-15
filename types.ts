@@ -35,6 +35,12 @@ export enum CloseReasons {
     NAME_TAKEN = 4002,
 }
 
+export const CodeMessages = {
+    [CloseReasons.GAME_NO_EXIST]: 'The game you are trying to join does not exist.',
+    [CloseReasons.GAME_IN_PROGRESS]: 'The game you are trying to join is in progress.',
+    [CloseReasons.NAME_TAKEN]: 'The name you have chosen was already taken.',
+}
+
 export enum GameStates {
     OPEN = 'open',
     PROMPTS = 'prompts',
