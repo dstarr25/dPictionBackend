@@ -25,6 +25,7 @@ export enum ToServerMessages {
 export enum ToClientMessages {
     JOIN_SUCCESS = 'join_success', // successful join, server sends room data
     JOIN = 'join', // to tell the clients that someone else joined
+    LEAVE = 'leave',
     DRAW = 'draw', // drawer draws something
     GUESS = 'guess', // someone makes a guess, only send to drawer
 }
@@ -56,9 +57,9 @@ export class Player {
     name: string
     score: number
     guess: string
-    ws: ServerWebSocket<unknown>
+    ws: ServerWebSocket<SocketPlayerData>
 
-    constructor(name: string, ws: ServerWebSocket<unknown>) {
+    constructor(name: string, ws: ServerWebSocket<SocketPlayerData>) {
         this.name = name
         this.score = 0
         this.guess = ""
@@ -69,6 +70,11 @@ export class Player {
 export interface Prompt {
     prompt: string,
     author: string
+}
+
+export interface SocketPlayerData {
+    gameId: string,
+    playerName: string
 }
 
 export class SocketMessage {

@@ -16,3 +16,4 @@ This project was created using `bun init` in bun v1.0.0. [Bun](https://bun.sh) i
 
 ## TDL:
 - 1 - add a join player function
+- 2 - change drawer in leaveresponse if person leaving was the drawer
