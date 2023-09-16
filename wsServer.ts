@@ -1,5 +1,5 @@
 import { ServerWebSocket } from "bun"
-import { CanvasData, CloseReasons, GameStates, JoinData, JoinResponse, ToServerMessages, Player, Room, SocketMessage, ToClientMessages, SocketPlayerData } from './types'
+import { CanvasData, CloseReasons, GameStates, JoinData, JoinResponse, ToServerMessages, Player, Room, SocketMessage, ToClientMessages, SocketPlayerData, StartDataToServer } from './types'
 import { randomUUID } from "crypto"
 
 class Router {
@@ -145,12 +145,28 @@ class Server extends Router {
 
                             // make them join the game they're tryna join
                             playerJoin(data.gameId, data.name, ws)
-                            printRooms()
 
                             // what do be rooms
+                            printRooms()
                             break
 
+                        }
+                        case ToServerMessages.START: {
+                            const data = messageData.data as StartDataToServer
+                            if (rooms[data.gameId] === undefined || rooms[data.gameId].admin !== data.name) break
 
+                            if (Object.keys(rooms[data.gameId].players).length < 3) {
+                                const errorMessage = new SocketMessage(ToClientMessages.ERROR, { error: 'Need 3 or more players.' })
+                                ws.send(JSON.stringify(errorMessage))
+                                break
+                            }
+
+                            rooms[data.gameId].gameState = GameStates.PROMPTS
+                            const startMessage = new SocketMessage(ToClientMessages.START, {})
+                            Object.values(rooms[data.gameId].players).forEach((player) => {
+                                player.ws.send(JSON.stringify(startMessage))
+                            })
+                            break
                         }
                         default:
                             break
@@ -192,7 +208,8 @@ class Server extends Router {
                     }
 
                     const leaveMessage = new SocketMessage(ToClientMessages.LEAVE, { playerName, drawer, admin })
-
+                    rooms[gameId].drawer = drawer
+                    rooms[gameId].admin = admin
                     Object.keys(rooms[gameId].players).forEach((name) => {
                         rooms[gameId].players[name].ws.send(JSON.stringify(leaveMessage))
                     })
