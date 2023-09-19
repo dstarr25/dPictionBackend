@@ -1,5 +1,5 @@
 import { ServerWebSocket } from "bun"
-import { CanvasData, CloseReasons, GameStates, JoinData, JoinResponse, ToServerMessages, Player, Room, SocketMessage, ToClientMessages, SocketPlayerData, StartDataToServer } from './types'
+import { CanvasData, CloseReasons, GameStates, JoinData, JoinResponse, ToServerMessages, Player, Room, SocketMessage, ToClientMessages, SocketPlayerData, StartDataToServer, PromptDataToServer } from './types'
 import { randomUUID } from "crypto"
 
 class Router {
@@ -166,7 +166,44 @@ class Server extends Router {
                             Object.values(rooms[data.gameId].players).forEach((player) => {
                                 player.ws.send(JSON.stringify(startMessage))
                             })
+                            const timer = setTimeout(() => {
+                                // const { prompts } = rooms[data.gameId]
+                                // const shuffled = prompts.sort(() => 0.5 - Math.random());
+                                // const startDrawingMessage = new SocketMessage(ToClientMessages.START_DRAWING, {
+                                //     drawer: Object.keys(rooms[data.gameId].players)[0],
+                                //     promptOptions: shuffled.slice(0, 3)
+                                // })
+                                //
+                                
+                                // TODO: send drawingphase start message to everyone
+                                // TODO: pick drawer and send drawer assignment message to them, with their choices
+                                // TODO: send non drawer assignment message to everyone else
+
+                                // grabs a prompt from each player that's not `excluded`
+                                const excluded = 'drawer'
+                                const choices = []
+                                Object.keys(rooms[data.gameId].players).forEach((playerName) => {
+                                    if (playerName === excluded) return
+                                    if (rooms[data.gameId].players[playerName].prompts.length === 0) return
+                                    rooms[data.gameId].players[playerName].prompts.sort(() => 0.5 - Math.random())
+                                    const choice = rooms[data.gameId].players[playerName].prompts.pop()
+                                    choices.push(choice)
+                                })
+                                
+                                // Object.values(rooms[data.gameId].players).forEach((player) => {
+                                //     player.ws.send(JSON.stringify(startDrawingMessage))
+                                // })
+                            }, 10000) // <--- duration of prompts stage
                             break
+                        }
+                        case ToServerMessages.PROMPT: {
+                            const { name, gameId, prompt } = messageData.data as PromptDataToServer
+                            if (rooms[gameId] === undefined || rooms[gameId].players[name] === undefined || rooms[gameId].gameState !== GameStates.PROMPTS) break
+                            
+                            rooms[gameId].players[name].prompts.push({ author: name, prompt })
+                            const promptSuccessMessage = new SocketMessage(ToClientMessages.PROMPT_SUCCESS, { prompt })
+                            ws.send(JSON.stringify(promptSuccessMessage)) // send prompt success message
+                            printRooms()
                         }
                         default:
                             break

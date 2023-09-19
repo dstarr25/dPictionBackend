@@ -24,13 +24,15 @@ export enum ToServerMessages {
 }
 
 export enum ToClientMessages {
-    JOIN_SUCCESS = 'join_success', // successful join, server sends room data
+    JOIN_SUCCESS = 'joinsuccess', // successful join, server sends room data
     JOIN = 'join', // to tell the clients that someone else joined
     LEAVE = 'leave',
     DRAW = 'draw', // drawer draws something
     GUESS = 'guess', // someone makes a guess, only send to drawer
     START = 'start',
     ERROR = 'error',
+    PROMPT_SUCCESS = 'promptsuccess',
+    START_DRAWING = 'startdrawing',
 }
 
 export enum CloseReasons {
@@ -61,12 +63,14 @@ export class Player {
     score: number
     guess: string
     ws: ServerWebSocket<SocketPlayerData>
+    prompts: Prompt[]
 
     constructor(name: string, ws: ServerWebSocket<SocketPlayerData>) {
         this.name = name
         this.score = 0
         this.guess = ""
         this.ws = ws
+        this.prompts = []
     }
 }
 
@@ -102,6 +106,7 @@ export class Room {
     prompt: string
     drawer: string
     admin: string
+    prompts: Prompt[]
 
     constructor() {
         this.players = {}
@@ -111,7 +116,7 @@ export class Room {
         this.prompt = ""
         this.drawer = ""
         this.admin = ""
-
+        this.prompts = []
     }
 
 
@@ -125,4 +130,10 @@ export interface JoinResponse {
 export interface StartDataToServer {
     name: string,
     gameId: string,
+}
+
+export interface PromptDataToServer {
+    name: string,
+    gameId: string,
+    prompt: string,
 }
