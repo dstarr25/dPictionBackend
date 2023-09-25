@@ -33,6 +33,8 @@ export enum ToClientMessages {
     ERROR = 'error',
     PROMPT_SUCCESS = 'promptsuccess',
     START_DRAWING = 'startdrawing',
+    NEW_ROUND = 'newround',
+    CHOICES = 'choices'
 }
 
 export enum CloseReasons {
@@ -107,6 +109,7 @@ export class Room {
     drawer: string
     admin: string
     prompts: Prompt[]
+    drawerIndex: number
 
     constructor() {
         this.players = {}
@@ -117,6 +120,7 @@ export class Room {
         this.drawer = ""
         this.admin = ""
         this.prompts = []
+        this.drawerIndex = 0
     }
 
 

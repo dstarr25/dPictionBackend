@@ -1,5 +1,5 @@
 import { ServerWebSocket } from "bun"
-import { CanvasData, CloseReasons, GameStates, JoinData, JoinResponse, ToServerMessages, Player, Room, SocketMessage, ToClientMessages, SocketPlayerData, StartDataToServer, PromptDataToServer } from './types'
+import { CanvasData, CloseReasons, GameStates, JoinData, JoinResponse, ToServerMessages, Player, Room, SocketMessage, ToClientMessages, SocketPlayerData, StartDataToServer, PromptDataToServer, Prompt } from './types'
 import { randomUUID } from "crypto"
 
 class Router {
@@ -92,8 +92,8 @@ class Server extends Router {
                 const method = req.method
                 const lookup = url.pathname + ' ' + method
 
+                if (lookup === '/ GET') return new Response(JSON.stringify(rooms))
                 if (routes[lookup] === undefined) return new Response('404!')
-
                 
                 return routes[lookup]()
                 
@@ -179,21 +179,42 @@ class Server extends Router {
                                 // TODO: pick drawer and send drawer assignment message to them, with their choices
                                 // TODO: send non drawer assignment message to everyone else
 
-                                // grabs a prompt from each player that's not `excluded`
-                                const excluded = 'drawer'
-                                const choices = []
+                                // send new round message to everyone with drawer, round number
+                                // then send just the drawer choices message
+
+                                rooms[data.gameId].gameState = GameStates.DRAWING
+
+                                // choose drawer
+                                if (rooms[data.gameId].drawerIndex >= Object.keys(rooms[data.gameId].players).length) rooms[data.gameId].drawerIndex = 0
+                                const drawer = Object.keys(rooms[data.gameId].players)[rooms[data.gameId].drawerIndex]
+                                rooms[data.gameId].drawerIndex++
+                                rooms[data.gameId].drawer = drawer;
+
+                                const newRoundMessage = new SocketMessage(ToClientMessages.NEW_ROUND, { drawer, roundNum: 1 })
+                                rooms[data.gameId].roundNum = 1
+                                Object.values(rooms[data.gameId].players).forEach((player) => {
+                                    player.ws.send(JSON.stringify(newRoundMessage))
+                                })
+
+
+                                console.log('drawer', drawer)
+
+                                // get the choices
+                                const choices = [] as Prompt[]
                                 Object.keys(rooms[data.gameId].players).forEach((playerName) => {
-                                    if (playerName === excluded) return
+                                    if (playerName === drawer) return
                                     if (rooms[data.gameId].players[playerName].prompts.length === 0) return
                                     rooms[data.gameId].players[playerName].prompts.sort(() => 0.5 - Math.random())
                                     const choice = rooms[data.gameId].players[playerName].prompts.pop()
+                                    if (choice === undefined) return
                                     choices.push(choice)
                                 })
+
+                                const choicesMessage = new SocketMessage(ToClientMessages.CHOICES, choices)
+                                rooms[data.gameId].players[drawer].ws.send(JSON.stringify(choicesMessage))
+                                console.log('choices', choices)
                                 
-                                // Object.values(rooms[data.gameId].players).forEach((player) => {
-                                //     player.ws.send(JSON.stringify(startDrawingMessage))
-                                // })
-                            }, 10000) // <--- duration of prompts stage
+                            }, 20000) // <--- duration of prompts stage
                             break
                         }
                         case ToServerMessages.PROMPT: {
