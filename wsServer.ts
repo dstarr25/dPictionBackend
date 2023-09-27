@@ -209,7 +209,7 @@ class Server extends Router {
                                     if (choice === undefined) return
                                     choices.push(choice)
                                 })
-
+                                choices.sort(() => 0.5 - Math.random()) // randomize prompt order
                                 const choicesMessage = new SocketMessage(ToClientMessages.CHOICES, choices)
                                 rooms[data.gameId].players[drawer].ws.send(JSON.stringify(choicesMessage))
                                 console.log('choices', choices)
@@ -225,6 +225,7 @@ class Server extends Router {
                             const promptSuccessMessage = new SocketMessage(ToClientMessages.PROMPT_SUCCESS, { prompt })
                             ws.send(JSON.stringify(promptSuccessMessage)) // send prompt success message
                             printRooms()
+                            break
                         }
                         default:
                             break
