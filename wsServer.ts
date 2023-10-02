@@ -1,6 +1,7 @@
 import { ServerWebSocket } from "bun"
-import { CanvasData, CloseReasons, GameStates, JoinData, JoinResponse, ToServerMessages, Player, Room, SocketMessage, ToClientMessages, SocketPlayerData, StartDataToServer, PromptDataToServer, Prompt } from './types'
+import { CanvasData, CloseReasons, GameStates, JoinData, JoinResponse, ToServerMessages, Player, Room, SocketMessage, ToClientMessages, SocketPlayerData, StartDataToServer, PromptDataToServer, Prompt, ChoosePromptDataToServer, DrawDataToServer } from './types'
 import { randomUUID } from "crypto"
+import timer from "./timer"
 
 class Router {
     public routes: { [key: string]: Function }
@@ -166,7 +167,13 @@ class Server extends Router {
                             Object.values(rooms[data.gameId].players).forEach((player) => {
                                 player.ws.send(JSON.stringify(startMessage))
                             })
-                            const timer = setTimeout(() => {
+                            timer((remaining) => {
+                                // send time remaining message to sockets
+                                Object.values(rooms[data.gameId].players).forEach((player) => {
+                                    const timeRemainingMessage = new SocketMessage(ToClientMessages.TIME_REMAINING, {timeRemaining: remaining})
+                                    player.ws.send(JSON.stringify(timeRemainingMessage))
+                                })
+                            }, () => {
                                 // const { prompts } = rooms[data.gameId]
                                 // const shuffled = prompts.sort(() => 0.5 - Math.random());
                                 // const startDrawingMessage = new SocketMessage(ToClientMessages.START_DRAWING, {
@@ -214,7 +221,7 @@ class Server extends Router {
                                 rooms[data.gameId].players[drawer].ws.send(JSON.stringify(choicesMessage))
                                 console.log('choices', choices)
                                 
-                            }, 20000) // <--- duration of prompts stage
+                            }, 20) // <--- duration of prompts stage
                             break
                         }
                         case ToServerMessages.PROMPT: {
@@ -226,7 +233,28 @@ class Server extends Router {
                             ws.send(JSON.stringify(promptSuccessMessage)) // send prompt success message
                             printRooms()
                             break
+                        } case ToServerMessages.CHOOSE_PROMPT: {
+                            const { name, gameId, prompt } = messageData.data as ChoosePromptDataToServer
+                            if (rooms[gameId] === undefined || rooms[gameId].players[name] === undefined || rooms[gameId].drawer !== name) break
+                            rooms[gameId].prompt = prompt
+                            Object.values(rooms[gameId].players).forEach((player) => {
+                                const drawerChosenMessage = new SocketMessage(ToClientMessages.DRAWER_CHOSEN, {})
+                                player.ws.send(JSON.stringify(drawerChosenMessage))
+                            })
+                            break
+                        } case ToServerMessages.DRAW: {
+                            const { width, height, pixels, gameId, name } = messageData.data as DrawDataToServer
+                            // console.log({ width, height, pixels, gameId, name })
+                            if (rooms[gameId] === undefined || rooms[gameId].players[name] === undefined || rooms[gameId].drawer !== name) break
+                            console.log('made it thru')
+                            Object.values(rooms[gameId].players).forEach((player) => {
+                                if (player.name === name) return
+                                const drawMessage = new SocketMessage(ToClientMessages.DRAW, { width, height, pixels })
+                                player.ws.send(JSON.stringify(drawMessage))
+                                
+                            })
                         }
+                        
                         default:
                             break
                     }

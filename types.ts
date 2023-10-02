@@ -21,6 +21,7 @@ export enum ToServerMessages {
     GUESS = 'guess', // someone makes a guess
     PROMPT = 'prompt', // someone writes a prompt
     START = 'start',
+    CHOOSE_PROMPT = 'chooseprompt'
 }
 
 export enum ToClientMessages {
@@ -34,7 +35,10 @@ export enum ToClientMessages {
     PROMPT_SUCCESS = 'promptsuccess',
     START_DRAWING = 'startdrawing',
     NEW_ROUND = 'newround',
-    CHOICES = 'choices'
+    CHOICES = 'choices',
+    TIME_REMAINING = 'timeremaining',
+    DRAWER_CHOSEN = 'drawerchosen'
+
 }
 
 export enum CloseReasons {
@@ -105,7 +109,7 @@ export class Room {
     // canvasData: CanvasData
     roundNum: number
     gameState: string
-    prompt: string
+    prompt: Prompt | undefined
     drawer: string
     admin: string
     prompts: Prompt[]
@@ -116,7 +120,6 @@ export class Room {
         // this.canvasData = new CanvasData()
         this.roundNum = -1
         this.gameState = GameStates.OPEN
-        this.prompt = ""
         this.drawer = ""
         this.admin = ""
         this.prompts = []
@@ -140,4 +143,17 @@ export interface PromptDataToServer {
     name: string,
     gameId: string,
     prompt: string,
+}
+export interface ChoosePromptDataToServer {
+    name: string,
+    gameId: string,
+    prompt: Prompt
+}
+
+export interface DrawDataToServer {
+    width: number,
+    height: number,
+    pixels: number,
+    gameId: string,
+    name: string
 }
