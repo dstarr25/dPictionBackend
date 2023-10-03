@@ -1,5 +1,5 @@
 import { ServerWebSocket } from "bun"
-import { CanvasData, CloseReasons, GameStates, JoinData, JoinResponse, ToServerMessages, Player, Room, SocketMessage, ToClientMessages, SocketPlayerData, StartDataToServer, PromptDataToServer, Prompt, ChoosePromptDataToServer, DrawDataToServer } from './types'
+import { CanvasData, CloseReasons, GameStates, JoinData, JoinResponse, ToServerMessages, Player, Room, SocketMessage, ToClientMessages, SocketPlayerData, StartDataToServer, PromptDataToServer, Prompt, ChoosePromptDataToServer, DrawDataToServer, GuessDataToServer, HintDataToServer } from './types'
 import { randomUUID } from "crypto"
 import timer from "./timer"
 
@@ -244,15 +244,32 @@ class Server extends Router {
                             break
                         } case ToServerMessages.DRAW: {
                             const { width, height, pixels, gameId, name } = messageData.data as DrawDataToServer
-                            // console.log({ width, height, pixels, gameId, name })
                             if (rooms[gameId] === undefined || rooms[gameId].players[name] === undefined || rooms[gameId].drawer !== name) break
-                            console.log('made it thru')
                             Object.values(rooms[gameId].players).forEach((player) => {
                                 if (player.name === name) return
                                 const drawMessage = new SocketMessage(ToClientMessages.DRAW, { width, height, pixels })
                                 player.ws.send(JSON.stringify(drawMessage))
                                 
                             })
+                            break
+                        } case ToServerMessages.GUESS: {
+                            const { name, guess, gameId } = messageData.data as GuessDataToServer
+                            if (rooms[gameId] === undefined || rooms[gameId].players[name] === undefined || rooms[gameId].drawer === name || rooms[gameId].gameState !== GameStates.DRAWING) break
+                            const guessMessage = new SocketMessage(ToClientMessages.GUESS, { name, guess })
+                            rooms[gameId].players[rooms[gameId].drawer].ws.send(JSON.stringify(guessMessage))
+
+
+                            break
+                        } case ToServerMessages.HINT: {
+                            const { gameId, name, guess, type } = messageData.data as HintDataToServer
+                            if (rooms[gameId] === undefined || rooms[gameId].players[name] === undefined || rooms[gameId].drawer !== name || rooms[gameId].gameState !== GameStates.DRAWING) break
+                            const hintMessage = new SocketMessage(ToClientMessages.HINT, { guess, type })
+                            const json = JSON.stringify(hintMessage)
+                            Object.values(rooms[gameId].players).forEach((player) => {
+                                if (player.name === name) return
+                                player.ws.send(json)
+                            })
+                            break
                         }
                         
                         default:
