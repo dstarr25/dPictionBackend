@@ -29,10 +29,6 @@ class Router {
 class Server extends Router {
     // public routes: { [key: string]: Function }
 
-    constructor() {
-        super()
-    }
-
     useRoutes(path: string, routes: Router) {
         for (const [routePath, foo] of Object.entries(routes.routes)) {
             this.routes[(path + routePath).replace(/\/+/g, '/')] = foo
@@ -66,7 +62,7 @@ class Server extends Router {
         }
 
         const printRooms = () => {
-            const tempRooms = JSON.parse(JSON.stringify(rooms)) as any
+            const tempRooms = JSON.parse(JSON.stringify(rooms))
             Object.keys(tempRooms).forEach((roomId) => {
                 Object.keys(tempRooms[roomId].players).forEach((playerName) => {
                     delete tempRooms[roomId].players[playerName].ws
