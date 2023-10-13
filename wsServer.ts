@@ -1,5 +1,5 @@
 import { ServerWebSocket } from "bun"
-import { CanvasData, CloseReasons, GameStates, JoinData, JoinResponse, ToServerMessages, Player, Room, SocketMessage, ToClientMessages, SocketPlayerData, StartDataToServer, PromptDataToServer, Prompt, ChoosePromptDataToServer, DrawDataToServer, GuessDataToServer, HintDataToServer } from './types'
+import { CanvasData, CloseReasons, GameStates, JoinData, JoinResponse, ToServerMessages, Player, Room, SocketMessage, ToClientMessages, SocketPlayerData, StartDataToServer, PromptDataToServer, Prompt, ChoosePromptDataToServer, DrawDataToServer, GuessDataToServer, HintDataToServer, SelectWinnerDataToServer } from './types'
 import { randomUUID } from "crypto"
 import timer from "./timer"
 
@@ -193,6 +193,7 @@ class Server extends Router {
                                 rooms[data.gameId].drawerIndex++
                                 rooms[data.gameId].drawer = drawer;
 
+                                // update round number, send new round message
                                 const newRoundMessage = new SocketMessage(ToClientMessages.NEW_ROUND, { drawer, roundNum: 1 })
                                 rooms[data.gameId].roundNum = 1
                                 Object.values(rooms[data.gameId].players).forEach((player) => {
@@ -260,11 +261,36 @@ class Server extends Router {
                             const { gameId, name, guess, type } = messageData.data as HintDataToServer
                             if (rooms[gameId] === undefined || rooms[gameId].players[name] === undefined || rooms[gameId].drawer !== name || rooms[gameId].gameState !== GameStates.DRAWING) break
                             const hintMessage = new SocketMessage(ToClientMessages.HINT, { guess, type })
-                            const json = JSON.stringify(hintMessage)
                             Object.values(rooms[gameId].players).forEach((player) => {
                                 if (player.name === name) return
-                                player.ws.send(json)
+                                player.ws.send(JSON.stringify(hintMessage))
                             })
+                            break
+                        } case ToServerMessages.SELECT_WINNER: {
+                            const { gameId, name, guess, winner } = messageData.data as SelectWinnerDataToServer
+                            if (rooms[gameId] === undefined || rooms[gameId].prompt === undefined || rooms[gameId].players[name] === undefined || rooms[gameId].drawer !== name || rooms[gameId].gameState !== GameStates.DRAWING || rooms[gameId].players[winner] === undefined) break
+                            // update: scores, 
+                            const oldPrompt = rooms[gameId].prompt as Prompt
+                            const promptAuthor = oldPrompt.author
+                            const winnerScore = rooms[gameId].players[winner].score += 1
+                            const promptAuthorScore = rooms[gameId].players[promptAuthor].score += 1
+                            // prompt to nothing, 
+                            rooms[gameId].prompt = undefined
+                            // round number,
+                            const roundNum = rooms[gameId].roundNum += 1
+                            // drawer, 
+                            if (rooms[gameId].drawerIndex >= Object.keys(rooms[gameId].players).length) rooms[gameId].drawerIndex = 0
+                            const drawer = Object.keys(rooms[gameId].players)[rooms[gameId].drawerIndex]
+                            rooms[gameId].drawerIndex++
+                            rooms[gameId].drawer = drawer;
+
+                            const endRoundMessage = new SocketMessage(ToClientMessages.END_ROUND, {
+                                roundNum, drawer, promptAuthor, winner, promptAuthorScore, winnerScore, guess, oldPrompt: oldPrompt.prompt
+                            })
+                            Object.values(rooms[gameId].players).forEach((player) => {
+                                player.ws.send(JSON.stringify(endRoundMessage))
+                            })
+
                             break
                         }
                         

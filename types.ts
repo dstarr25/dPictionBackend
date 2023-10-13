@@ -22,7 +22,8 @@ export enum ToServerMessages {
     PROMPT = 'prompt', // someone writes a prompt
     START = 'start',
     CHOOSE_PROMPT = 'chooseprompt',
-    HINT = 'hint'
+    HINT = 'hint',
+    SELECT_WINNER = 'selectwinner',
 
 }
 
@@ -40,7 +41,9 @@ export enum ToClientMessages {
     CHOICES = 'choices',
     TIME_REMAINING = 'timeremaining',
     DRAWER_CHOSEN = 'drawerchosen',
-    HINT = 'hint'
+    HINT = 'hint',
+    END_ROUND = 'endround',
+
 
 
 }
@@ -116,7 +119,6 @@ export class Room {
     prompt: Prompt | undefined
     drawer: string
     admin: string
-    prompts: Prompt[]
     drawerIndex: number
 
     constructor() {
@@ -126,7 +128,6 @@ export class Room {
         this.gameState = GameStates.OPEN
         this.drawer = ""
         this.admin = ""
-        this.prompts = []
         this.drawerIndex = 0
     }
 
@@ -178,4 +179,11 @@ export interface HintDataToServer {
     gameId: string,
     guess: string,
     type: string
+}
+
+export interface SelectWinnerDataToServer {
+    name: string,
+    gameId: string,
+    guess: string,
+    winner: string
 }
