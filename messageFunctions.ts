@@ -177,8 +177,10 @@ const messageFunctionsGenerator = (rooms: { [key: string]: Room }) => ({
         // update: scores, 
         const oldPrompt = rooms[gameId].prompt as Prompt
         const promptAuthor = oldPrompt.author
-        const winnerScore = rooms[gameId].players[winner].score += 1
-        const promptAuthorScore = rooms[gameId].players[promptAuthor].score += 1
+        rooms[gameId].players[winner].score += 1
+        rooms[gameId].players[promptAuthor].score += 1
+        const winnerScore = rooms[gameId].players[winner].score
+        const promptAuthorScore = rooms[gameId].players[promptAuthor].score
         // prompt to nothing, 
         rooms[gameId].prompt = undefined
         // round number,
@@ -195,6 +197,22 @@ const messageFunctionsGenerator = (rooms: { [key: string]: Room }) => ({
         Object.values(rooms[gameId].players).forEach((player) => {
             player.ws.send(JSON.stringify(endRoundMessage))
         })
+
+        // get the choices
+        const choices = [] as Prompt[]
+        Object.keys(rooms[gameId].players).forEach((playerName) => {
+            if (playerName === drawer) return
+            if (rooms[gameId].players[playerName].prompts.length === 0) return
+            rooms[gameId].players[playerName].prompts.sort(() => 0.5 - Math.random())
+            const choice = rooms[gameId].players[playerName].prompts.pop()
+            if (choice === undefined) return
+            choices.push(choice)
+        })
+        choices.sort(() => 0.5 - Math.random()) // randomize prompt order
+        const choicesMessage = new SocketMessage(ToClientMessages.CHOICES, choices)
+        rooms[gameId].players[drawer].ws.send(JSON.stringify(choicesMessage))
+        
+
     },
     // [ToServerMessages.JOIN]: (ws: ServerWebSocket<SocketPlayerData>, messageData: any) => {
         
