@@ -43,6 +43,7 @@ export enum ToClientMessages {
     DRAWER_CHOSEN = 'drawerchosen',
     HINT = 'hint',
     END_ROUND = 'endround',
+    GAME_OVER = 'gameover',
 
 
 
@@ -63,7 +64,8 @@ export const CodeMessages = {
 export enum GameStates {
     OPEN = 'open',
     PROMPTS = 'prompts',
-    DRAWING = 'drawing'
+    DRAWING = 'drawing',
+    OVER = 'over',
 }
 
 export interface Guess {
@@ -120,6 +122,9 @@ export class Room {
     drawer: string
     admin: string
     drawerIndex: number
+    promptsPP: number
+    rounds: number
+
 
     constructor() {
         this.players = {}
@@ -129,6 +134,8 @@ export class Room {
         this.drawer = ""
         this.admin = ""
         this.drawerIndex = 0
+        this.promptsPP = 3
+        this.rounds = 0
     }
 
 
@@ -142,6 +149,7 @@ export interface JoinResponse {
 export interface StartDataToServer {
     name: string,
     gameId: string,
+    rounds: number,
 }
 
 export interface PromptDataToServer {
