@@ -29,7 +29,7 @@ const chooseDrawer = (room: Room) => {
     room.drawer = playersByPrompts[0].name
 }
 
-// i like this better than the router class because it's just a function. My friend josh enjoys the router class more because it's more object oriented. I think this is more functional. I think it's a matter of preference. He also likes poop.
+
 const messageFunctionsGenerator = (rooms: { [key: string]: Room }) => ({
     [ToServerMessages.JOIN]: (ws: ServerWebSocket<SocketPlayerData>, messageData: any) => {
         const data: JoinData = messageData.data
@@ -241,16 +241,8 @@ const messageFunctionsGenerator = (rooms: { [key: string]: Room }) => ({
         // drawer, 
         chooseDrawer(rooms[gameId])
 
-        const endRoundMessage = new SocketMessage(ToClientMessages.END_ROUND, {
-            roundNum, drawer: rooms[gameId].drawer, promptAuthor, winner, promptAuthorScore, winnerScore, guess, oldPrompt: oldPrompt.prompt
-        })
-        Object.values(rooms[gameId].players).forEach((player) => {
-            player.ws.send(JSON.stringify(endRoundMessage))
-        })
-
         // get the choices
         const choices: Prompt[] = []
-
 
         Object.keys(rooms[gameId].players).forEach((playerName) => {
             if (playerName === rooms[gameId].drawer) return
@@ -261,7 +253,12 @@ const messageFunctionsGenerator = (rooms: { [key: string]: Room }) => ({
             choices.push(choice)
         })
 
-        if (choices.length < Object.keys(rooms[gameId].players).length - 1) {
+        // send end round message to everyone
+        const endRoundMessage = new SocketMessage(ToClientMessages.END_ROUND, {
+            roundNum, drawer: rooms[gameId].drawer, promptAuthor, winner, promptAuthorScore, winnerScore, guess, oldPrompt: oldPrompt.prompt
+        })
+
+        if (choices.length < Object.keys(rooms[gameId].players).length - 1 || roundNum > rooms[gameId].rounds) {
             // end game
             rooms[gameId].gameState = GameStates.OVER
             const namesAndScores = Object.values(rooms[gameId].players).sort((a, b) => b.score - a.score).map(p => ({ name: p.name, score: p.score }))
@@ -269,8 +266,16 @@ const messageFunctionsGenerator = (rooms: { [key: string]: Room }) => ({
             Object.values(rooms[gameId].players).forEach((player) => {
                 player.ws.send(JSON.stringify(endGameMessage))
             })
+            endRoundMessage.data = { ...endRoundMessage.data, over: true }
+            Object.values(rooms[gameId].players).forEach((player) => {
+                player.ws.send(JSON.stringify(endRoundMessage))
+            })
             return
         }
+
+        Object.values(rooms[gameId].players).forEach((player) => {
+            player.ws.send(JSON.stringify(endRoundMessage))
+        })
 
         choices.sort(() => 0.5 - Math.random()) // randomize prompt order
         const choicesMessage = new SocketMessage(ToClientMessages.CHOICES, choices)
