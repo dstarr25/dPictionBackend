@@ -283,6 +283,29 @@ const messageFunctionsGenerator = (rooms: { [key: string]: Room }) => ({
         
 
     },
+    [ToServerMessages.PLAY_AGAIN]: (ws: ServerWebSocket<SocketPlayerData>, messageData: any) => {
+        const { gameId, name }: { gameId: string, name: string } = messageData.data
+        if (rooms[gameId] === undefined || rooms[gameId].players[name] === undefined || rooms[gameId].gameState !== GameStates.OVER || name !== rooms[gameId].admin) return
+        
+        Object.values(rooms[gameId].players).forEach((player) => {
+            player.prompts = []
+            player.score = 0
+        })
+        rooms[gameId].gameState = GameStates.OPEN
+        rooms[gameId].roundNum = -1
+        rooms[gameId].prompt = undefined
+        rooms[gameId].drawer = ""
+
+        const joinSuccessMessage = new SocketMessage(ToClientMessages.JOIN_SUCCESS, {
+            players: Object.keys(rooms[gameId].players),
+            admin: rooms[gameId].admin,
+            gameId
+        })
+        Object.values(rooms[gameId].players).forEach((player) => {
+            player.ws.send(JSON.stringify(joinSuccessMessage))
+        })
+        
+    },
     // [ToServerMessages.JOIN]: (ws: ServerWebSocket<SocketPlayerData>, messageData: any) => {
         
     // },

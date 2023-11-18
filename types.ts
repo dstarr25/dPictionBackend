@@ -24,6 +24,7 @@ export enum ToServerMessages {
     CHOOSE_PROMPT = 'chooseprompt',
     HINT = 'hint',
     SELECT_WINNER = 'selectwinner',
+    PLAY_AGAIN = 'playagain',
 
 }
 
