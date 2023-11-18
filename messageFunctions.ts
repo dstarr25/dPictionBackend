@@ -306,6 +306,16 @@ const messageFunctionsGenerator = (rooms: { [key: string]: Room }) => ({
         })
         
     },
+    [ToServerMessages.KICK]: (ws: ServerWebSocket<SocketPlayerData>, messageData: any) => {
+        const { gameId, name, playerToKick }: { gameId: string, name: string, playerToKick: string } = messageData.data
+        if (rooms[gameId] === undefined || rooms[gameId].players[name] === undefined || rooms[gameId].players[playerToKick] === undefined || rooms[gameId].gameState !== GameStates.OPEN || name !== rooms[gameId].admin) return
+        rooms[gameId].players[playerToKick].ws.close(CloseReasons.KICKED)
+        delete rooms[gameId].players[playerToKick]
+        const kickMessage = new SocketMessage(ToClientMessages.LEAVE, { playerLeaving: playerToKick, admin: rooms[gameId].admin, drawer: rooms[gameId].drawer })
+        Object.values(rooms[gameId].players).forEach((player) => {
+            player.ws.send(JSON.stringify(kickMessage))
+        })
+    }
     // [ToServerMessages.JOIN]: (ws: ServerWebSocket<SocketPlayerData>, messageData: any) => {
         
     // },
